@@ -67,7 +67,7 @@ def execucaoPCG():
 
 if __name__ == "__main__":
     print("=== EXECUÇÃO DO PROJETO: PCV + PCG ===")
-    print("Iniciando análise conjunta...\n")
+    print("Iniciando análise conjunta\n")
 
     resultadosPCV = execucaoPCV()
     resltadosPSG = execucaoPCG()
