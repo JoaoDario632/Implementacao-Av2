@@ -1,86 +1,96 @@
+"""Funções relacionadas ao Problema do Caixeiro Viajante (PCV)."""
+
+from __future__ import annotations
+
+import itertools
 import math
+from typing import Iterable, List, Sequence, Tuple
+
+Coordenada = Tuple[float, float]
+Rota = List[Coordenada]
 
 
-# ---------------------------------------------------------
-# Função: distancia(p1, p2)
-# ---------------------------------------------------------
-# Calcula a distância euclidiana entre dois pontos (x1, y1) e (x2, y2)
-def distancia(p1, p2):
-    calculoPontos = math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-    return calculoPontos
+def distancia(ponto_a: Coordenada, ponto_b: Coordenada) -> float:
+    """Calcula a distância euclidiana entre dois pontos (x1, y1) e (x2, y2)."""
+
+    return math.dist(ponto_a, ponto_b)
 
 
-# ---------------------------------------------------------
-# Função: TSPvizinhoProximo(cidades)
-# ---------------------------------------------------------
-# Implementa a heurística do *vizinho mais próximo*:
-# - Escolhe uma cidade inicial (a primeira da lista)
-# - Sempre vai para a cidade mais próxima ainda não visitada
-# - Retorna a rota completa, voltando à cidade inicial
-#
-# Parâmetros:
-#   cidades: lista de tuplas (x, y) representando as coordenadas das cidades
-# Retorno:
-#   rota: lista de cidades na ordem visitada
-# ---------------------------------------------------------
-def TSPvizinhoProximo(cidades):
-    inicio = cidades[0]          # Cidade inicial
-    naoPercorridos = cidades[1:] # Lista das cidades restantes
-    rota = [inicio]              # Rota começa pela cidade inicial
-    atual = inicio               # Cidade atual
+def _validar_cidades(cidades: Sequence[Coordenada]) -> None:
+    if not cidades:
+        raise ValueError("A lista de cidades não pode ser vazia.")
+    if len(cidades) < 2:
+        raise ValueError("São necessárias pelo menos duas cidades para montar uma rota.")
 
-    # Enquanto ainda houver cidades a visitar
-    while naoPercorridos:
-        # Escolhe a cidade mais próxima da atual
-        proxima = min(naoPercorridos, key=lambda c: distancia(atual, c))
-        rota.append(proxima)         # Adiciona a próxima cidade à rota
-        naoPercorridos.remove(proxima) # Remove do conjunto de não visitadas
-        atual = proxima              # Atualiza a cidade atual
 
-    # Retorna à cidade de origem no final (fechando o ciclo)
+def TSPvizinhoProximo(cidades: Sequence[Coordenada]) -> Rota:
+    """Heurística do vizinho mais próximo."""
+
+    _validar_cidades(cidades)
+
+    inicio = cidades[0]
+    nao_percorridos = list(cidades[1:])
+    rota = [inicio]
+    atual = inicio
+
+    while nao_percorridos:
+        proxima = min(nao_percorridos, key=lambda cidade: distancia(atual, cidade))
+        rota.append(proxima)
+        nao_percorridos.remove(proxima)
+        atual = proxima
+
     rota.append(inicio)
     return rota
 
-# Calcula o custo total (distância total percorrida) de uma rota.
-# Soma a distância entre cada par consecutivo de cidades.
-def CustoRota(rota):
+
+def CustoRota(rota: Sequence[Coordenada]) -> float:
+    """Calcula o custo total (distância) de uma rota."""
+
+    if len(rota) < 2:
+        return 0.0
     return sum(distancia(rota[i], rota[i + 1]) for i in range(len(rota) - 1))
 
 
-# Implementa o algoritmo de otimização local *2-Opt*:
-# - Tenta reduzir o custo da rota invertendo segmentos
-# - Troca dois arcos (arestas) por dois novos se isso reduzir o custo
-# - Continua enquanto houver melhora (método iterativo)
-#
-# Parâmetros:
-#   rota_inicial: rota inicial (lista de cidades)
-# Retorno:
-#   melhor: rota otimizada após aplicar o 2-Opt
-def tsp_2opt(rota_inicial):
-    melhor = rota_inicial[:]             # Copia da rota original
-    custoMelhor = CustoRota(melhor)      # Calcula o custo inicial
-    melhorou = True                      # Flag de controle (houve melhoria?)
+def tsp_2opt(rota_inicial: Sequence[Coordenada]) -> Rota:
+    """Aplica o algoritmo 2-opt até não haver melhorias."""
 
-    # Continua enquanto houver melhoria no custo
+    if len(rota_inicial) < 4:
+        return list(rota_inicial)
+
+    melhor = list(rota_inicial)
+    custo_melhor = CustoRota(melhor)
+    melhorou = True
+
     while melhorou:
         melhorou = False
 
-        # Percorre todos os pares possíveis de índices (i, j)
-        # e tenta inverter o trecho entre eles
-        for i in range(1, len(melhor) - 2):
-            for j in range(i + 1, len(melhor) - 1):
+        for indice_i in range(1, len(melhor) - 2):
+            for indice_j in range(indice_i + 1, len(melhor) - 1):
+                nova_rota = melhor[:indice_i] + melhor[indice_i:indice_j][::-1] + melhor[indice_j:]
+                custo_novo = CustoRota(nova_rota)
 
-                # Cria nova rota invertendo o segmento entre i e j
-                nova_rota = melhor[:i] + melhor[i:j][::-1] + melhor[j:]
-
-                # Calcula o custo da nova rota
-                custoNovo = CustoRota(nova_rota)
-
-                # Se a nova rota for melhor (menor custo), atualiza
-                if custoNovo < custoMelhor:
+                if custo_novo < custo_melhor:
                     melhor = nova_rota
-                    custoMelhor = custoNovo
+                    custo_melhor = custo_novo
                     melhorou = True
 
-    # Retorna a melhor rota encontrada
     return melhor
+
+
+def tsp_bruteforce(cidades: Sequence[Coordenada]) -> Tuple[Rota, float]:
+    """Resolve o PCV por força bruta (apenas para instâncias pequenas)."""
+
+    _validar_cidades(cidades)
+
+    inicio = cidades[0]
+    melhor_rota: Rota | None = None
+    melhor_custo = math.inf
+
+    for permutacao in itertools.permutations(cidades[1:]):
+        rota = [inicio, *permutacao, inicio]
+        custo = CustoRota(rota)
+        if custo < melhor_custo:
+            melhor_custo = custo
+            melhor_rota = rota
+
+    return melhor_rota or [inicio], melhor_custo
