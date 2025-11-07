@@ -70,8 +70,8 @@ if __name__ == "__main__":
     print("Iniciando análise conjunta\n")
 
     resultadosPCV = execucaoPCV()
-    resltadosPSG = execucaoPCG()
+    resultadosPSG = execucaoPCG()
 
     tabelaPCV(resultadosPCV)
-    tabelaPCG(resltadosPSG)
-    Resumo(resultadosPCV, resltadosPSG)
+    tabelaPCG(resultadosPSG)
+    Resumo(resultadosPCV, resultadosPSG)
