@@ -1,77 +1,181 @@
-# main.py
+"""Ponto de entrada do projeto que executa PCV e PCG."""
+
+from __future__ import annotations
+
+import argparse
+import json
 import time
-from PCV import TSPvizinhoProximo, tsp_2opt, CustoRota
-from PCG import CorGulosa, Dsatur
-from Tabela import tabelaPCV, tabelaPCG, Resumo
+from pathlib import Path
+from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
-def execucaoPCV():
-    print("\n=== [1] PROBLEMA DO CAIXEIRO VIAJANTE (PCV) ===")
+from PCV import CustoRota, TSPvizinhoProximo, tsp_2opt, tsp_bruteforce
+from PCG import CorGulosa, Dsatur, coloracao_backtracking
+from Tabela import Resumo, tabelaPCG, tabelaPCV
 
-    # Coordenadas de exemplo
-    cidades = [(0, 0), (1, 3), (4, 3), (6, 1), (3, 0), (2, 2)]
+Cidades = Sequence[Tuple[float, float]]
+Grafo = Mapping[str, Sequence[str]]
 
-    # --- Algoritmo 1: Vizinho Mais Próximo
-    inicio = time.time()
-    rota_gulosa = TSPvizinhoProximo(cidades)
-    tempo_guloso = time.time() - inicio
-    custo_guloso = CustoRota(rota_gulosa)
 
-    # --- Algoritmo 2: 2-opt
-    inicio = time.time()
-    rota_2opt = tsp_2opt(rota_gulosa)
-    tempo_2opt = time.time() - inicio
+def carregar_instancias(path: Path | None, chave: str) -> List[Dict]:
+    if not path:
+        return []
+
+    with path.open("r", encoding="utf-8") as arquivo:
+        conteudo = json.load(arquivo)
+
+    instancias = conteudo.get(chave)
+    if not isinstance(instancias, list):
+        raise ValueError(f"Arquivo {path} não contém a chave '{chave}' com uma lista de instâncias.")
+    return instancias
+
+
+def normalizar_cidades(instancia: Mapping) -> Tuple[str, Cidades]:
+    nome = instancia.get("nome", "instancia_sem_nome")
+    cidades_brutas = instancia.get("cidades")
+    if not isinstance(cidades_brutas, Iterable):
+        raise ValueError(f"Instância '{nome}' não possui lista de cidades válida.")
+
+    cidades = [tuple(map(float, cidade)) for cidade in cidades_brutas]
+    return nome, cidades
+
+
+def normalizar_grafo(instancia: Mapping) -> Tuple[str, Grafo]:
+    nome = instancia.get("nome", "instancia_sem_nome")
+    grafo = instancia.get("grafo")
+    if not isinstance(grafo, Mapping):
+        raise ValueError(f"Instância '{nome}' não possui um grafo válido.")
+    return nome, grafo
+
+
+def executar_pcv(nome: str, cidades: Cidades) -> Dict:
+    inicio = time.perf_counter()
+    rota_vizinho = TSPvizinhoProximo(cidades)
+    tempo_vizinho = time.perf_counter() - inicio
+    custo_vizinho = CustoRota(rota_vizinho)
+
+    inicio = time.perf_counter()
+    rota_2opt = tsp_2opt(rota_vizinho)
+    tempo_2opt = time.perf_counter() - inicio
     custo_2opt = CustoRota(rota_2opt)
 
-    print("\n--- Resultados PCV ---")
-    print("Rota (guloso):", rota_gulosa)
-    print("Rota (2-opt):", rota_2opt)
+    otimo = None
+    fator_vizinho = None
+    fator_2opt = None
+
+    if len(cidades) <= 10:
+        inicio = time.perf_counter()
+        rota_otima, custo_otimo = tsp_bruteforce(cidades)
+        tempo_otimo = time.perf_counter() - inicio
+        otimo = {"rota": rota_otima, "custo": custo_otimo, "tempo": tempo_otimo}
+        if custo_otimo > 0:
+            fator_vizinho = custo_vizinho / custo_otimo
+            fator_2opt = custo_2opt / custo_otimo
 
     return {
-        "guloso": {"tempo": tempo_guloso, "custo": custo_guloso},
-        "2opt": {"tempo": tempo_2opt, "custo": custo_2opt}
+        "nome": nome,
+        "guloso": {"tempo": tempo_vizinho, "custo": custo_vizinho, "rota": rota_vizinho, "rho": fator_vizinho},
+        "2opt": {"tempo": tempo_2opt, "custo": custo_2opt, "rota": rota_2opt, "rho": fator_2opt},
+        "otimo": otimo,
     }
 
 
-def execucaoPCG():
-    print("\n=== [2] PROBLEMA DA COLORAÇÃO DE GRAFOS (PCG) ===")
-
-    grafo = {
-        'A': ['B', 'C', 'D'],
-        'B': ['A', 'C', 'E'],
-        'C': ['A', 'B', 'D', 'E'],
-        'D': ['A', 'C', 'E'],
-        'E': ['B', 'C', 'D']
-    }
-
-    # --- Algoritmo 1: Guloso
-    inicio = time.time()
+def executar_pcg(nome: str, grafo: Grafo) -> Dict:
+    inicio = time.perf_counter()
     cores_gulosa = CorGulosa(grafo)
-    TempoGulosa = time.time() - inicio
-    totalCoresGulosa = max(cores_gulosa.values()) + 1
+    tempo_guloso = time.perf_counter() - inicio
+    total_cores_gulosa = max(cores_gulosa.values()) + 1 if cores_gulosa else 0
 
-    # --- Algoritmo 2: DSATUR
-    inicio = time.time()
+    inicio = time.perf_counter()
     cores_dsat = Dsatur(grafo)
-    tempoDast = time.time() - inicio
-    TotoalCoresDast = max(cores_dsat.values()) + 1
+    tempo_dsat = time.perf_counter() - inicio
+    total_cores_dsat = max(cores_dsat.values()) + 1 if cores_dsat else 0
 
-    print("\n--- Resultados PCG ---")
-    print("Cores (guloso):", cores_gulosa)
-    print("Cores (DSATUR):", cores_dsat)
+    fator_guloso = None
+    fator_dsat = None
+    otimo = None
+
+    if len(grafo) <= 8:
+        inicio = time.perf_counter()
+        cores_otimas = coloracao_backtracking(grafo)
+        tempo_otimo = time.perf_counter() - inicio
+        numero_cores_otimo = max(cores_otimas.values()) + 1 if cores_otimas else 0
+        otimo = {"coloracao": cores_otimas, "cores": numero_cores_otimo, "tempo": tempo_otimo}
+
+        if numero_cores_otimo > 0:
+            fator_guloso = total_cores_gulosa / numero_cores_otimo
+            fator_dsat = total_cores_dsat / numero_cores_otimo
 
     return {
-        "guloso": {"tempo": TempoGulosa, "cores": totalCoresGulosa},
-        "dsat": {"tempo": tempoDast, "cores": TotoalCoresDast}
+        "nome": nome,
+        "guloso": {"tempo": tempo_guloso, "cores": total_cores_gulosa, "coloracao": cores_gulosa, "rho": fator_guloso},
+        "dsat": {"tempo": tempo_dsat, "cores": total_cores_dsat, "coloracao": cores_dsat, "rho": fator_dsat},
+        "otimo": otimo,
     }
+
+
+def carregar_instancias_padrao() -> Tuple[List[Dict], List[Dict]]:
+    pcv_default = [{"nome": "exemplo_base", "cidades": [(0, 0), (1, 3), (4, 3), (6, 1), (3, 0), (2, 2)]}]
+    pcg_default = [{
+        "nome": "exemplo_base",
+        "grafo": {
+            "A": ["B", "C", "D"],
+            "B": ["A", "C", "E"],
+            "C": ["A", "B", "D", "E"],
+            "D": ["A", "C", "E"],
+            "E": ["B", "C", "D"],
+        },
+    }]
+    return pcv_default, pcg_default
+
+
+def salvar_resultados(path: Path, dados: List[Dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as arquivo:
+        json.dump(dados, arquivo, indent=2, ensure_ascii=False)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Execução dos experimentos de PCV e PCG.")
+    parser.add_argument("--instancias-pcv", type=Path, help="Arquivo JSON com instâncias de PCV.", default=None)
+    parser.add_argument("--instancias-pcg", type=Path, help="Arquivo JSON com instâncias de PCG.", default=None)
+    parser.add_argument(
+        "--saida",
+        type=Path,
+        help="Diretório para salvar os resultados (JSON).",
+        default=Path("resultados"),
+    )
+
+    argumentos = parser.parse_args()
+
+    instancias_pcv = carregar_instancias(argumentos.instancias_pcv, "instancias_pcv")
+    instancias_pcg = carregar_instancias(argumentos.instancias_pcg, "instancias_pcg")
+
+    if not instancias_pcv and not instancias_pcg:
+        instancias_pcv, instancias_pcg = carregar_instancias_padrao()
+
+    resultados_pcv = []
+    for instancia in instancias_pcv:
+        nome, cidades = normalizar_cidades(instancia)
+        resultado = executar_pcv(nome, cidades)
+        resultados_pcv.append(resultado)
+
+    resultados_pcg = []
+    for instancia in instancias_pcg:
+        nome, grafo = normalizar_grafo(instancia)
+        resultado = executar_pcg(nome, grafo)
+        resultados_pcg.append(resultado)
+
+    if resultados_pcv:
+        tabelaPCV(resultados_pcv)
+        salvar_resultados(argumentos.saida / "pcv_resultados.json", resultados_pcv)
+
+    if resultados_pcg:
+        tabelaPCG(resultados_pcg)
+        salvar_resultados(argumentos.saida / "pcg_resultados.json", resultados_pcg)
+
+    if resultados_pcv or resultados_pcg:
+        Resumo(resultados_pcv, resultados_pcg)
 
 
 if __name__ == "__main__":
-    print("=== EXECUÇÃO DO PROJETO: PCV + PCG ===")
-    print("Iniciando análise conjunta\n")
-
-    resultadosPCV = execucaoPCV()
-    resultadosPSG = execucaoPCG()
-
-    tabelaPCV(resultadosPCV)
-    tabelaPCG(resultadosPSG)
-    Resumo(resultadosPCV, resultadosPSG)
+    main()

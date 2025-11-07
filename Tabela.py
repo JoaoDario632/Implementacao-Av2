@@ -1,89 +1,123 @@
 from tabulate import tabulate
-def tabelaPCV(PCVResults):
-    """
-    Exibe a tabela formatada dos resultados do Problema do Caixeiro Viajante (PCV).
-    Versão menos otimizada, com construção manual da lista de dados.
-    """
-    dados = []
-
-    linha1 = [
-        "Vizinho Mais Próximo",
-        str(round(PCVResults["guloso"]["tempo"], 5)) + "s",
-        str(round(PCVResults["guloso"]["custo"], 2))
-    ]
-    dados.append(linha1)
-
-    linha2 = [
-        "2-opt",
-        str(round(PCVResults["2opt"]["tempo"], 5)) + "s",
-        str(round(PCVResults["2opt"]["custo"], 2))
-    ]
-    dados.append(linha2)
-
-    print("\nRESULTADOS — Problema do Caixeiro Viajante (PCV)")
-    print(tabulate(dados, headers=["Algoritmo", "Tempo (s)", "Custo Total"], tablefmt="fancy_grid"))
 
 
-def tabelaPCG(PCGResults):
-    dados = []
-
-    linha1 = [
-        "Guloso",
-        str(round(PCGResults["guloso"]["tempo"], 5)) + "s",
-        PCGResults["guloso"]["cores"]
-    ]
-    dados.append(linha1)
-
-    linha2 = [
-        "DSATUR",
-        str(round(PCGResults["dsat"]["tempo"], 5)) + "s",
-        PCGResults["dsat"]["cores"]
-    ]
-    dados.append(linha2)
-
-    print("\nRESULTADOS — Problema da Coloração de Grafos (PCG)")
-    print(tabulate(dados, headers=["Algoritmo", "Tempo (s)", "Nº de Cores"], tablefmt="fancy_grid"))
+def _formatar_tempo(segundos):
+    return f"{round(segundos, 5)}s" if segundos is not None else "-"
 
 
-def Resumo(PCVResults, PCGResults):
+def _formatar_valor(valor, casas=2):
+    return str(round(valor, casas)) if valor is not None else "-"
+
+
+def _formatar_fator(rho):
+    return f"{rho:.3f}" if rho is not None else "-"
+
+
+def tabelaPCV(resultados):
+    for instancia in resultados:
+        print(f"\nRESULTADOS — PCV ({instancia['nome']})")
+
+        dados = [
+            [
+                "Vizinho Mais Próximo",
+                _formatar_tempo(instancia["guloso"]["tempo"]),
+                _formatar_valor(instancia["guloso"]["custo"]),
+                _formatar_fator(instancia["guloso"].get("rho")),
+            ],
+            [
+                "2-opt",
+                _formatar_tempo(instancia["2opt"]["tempo"]),
+                _formatar_valor(instancia["2opt"]["custo"]),
+                _formatar_fator(instancia["2opt"].get("rho")),
+            ],
+        ]
+
+        if instancia.get("otimo"):
+            dados.append([
+                "Ótimo (Força Bruta)",
+                _formatar_tempo(instancia["otimo"].get("tempo")),
+                _formatar_valor(instancia["otimo"].get("custo")),
+                "1.000",
+            ])
+
+        print(tabulate(dados, headers=["Algoritmo", "Tempo (s)", "Custo Total", "Fator ρ"], tablefmt="fancy_grid"))
+
+
+def tabelaPCG(resultados):
+    for instancia in resultados:
+        print(f"\nRESULTADOS — PCG ({instancia['nome']})")
+
+        dados = [
+            [
+                "Guloso",
+                _formatar_tempo(instancia["guloso"]["tempo"]),
+                instancia["guloso"]["cores"],
+                _formatar_fator(instancia["guloso"].get("rho")),
+            ],
+            [
+                "DSATUR",
+                _formatar_tempo(instancia["dsat"]["tempo"]),
+                instancia["dsat"]["cores"],
+                _formatar_fator(instancia["dsat"].get("rho")),
+            ],
+        ]
+
+        if instancia.get("otimo"):
+            dados.append([
+                "Ótimo (Backtracking)",
+                _formatar_tempo(instancia["otimo"].get("tempo")),
+                instancia["otimo"].get("cores"),
+                "1.000",
+            ])
+
+        print(tabulate(dados, headers=["Algoritmo", "Tempo (s)", "Nº de Cores", "Fator ρ"], tablefmt="fancy_grid"))
+
+
+def Resumo(resultados_pcv, resultados_pcg):
     print("\nRESUMO GERAL DOS RESULTADOS")
 
     dados = []
 
-    # PCV - Vizinho Próximo
-    linha1 = [
-        "PCV - Vizinho Próximo",
-        str(round(PCVResults["guloso"]["tempo"], 5)) + "s",
-        str(round(PCVResults["guloso"]["custo"], 2)),
-        "-"
-    ]
-    dados.append(linha1)
+    for instancia in resultados_pcv:
+        dados.extend([
+            [
+                f"PCV ({instancia['nome']}) - Vizinho Próximo",
+                _formatar_tempo(instancia["guloso"]["tempo"]),
+                _formatar_valor(instancia["guloso"]["custo"]),
+                _formatar_fator(instancia["guloso"].get("rho")),
+                "-",
+            ],
+            [
+                f"PCV ({instancia['nome']}) - 2-opt",
+                _formatar_tempo(instancia["2opt"]["tempo"]),
+                _formatar_valor(instancia["2opt"]["custo"]),
+                _formatar_fator(instancia["2opt"].get("rho")),
+                "-",
+            ],
+        ])
 
-    # PCV - 2-opt
-    linha2 = [
-        "PCV - 2-opt",
-        str(round(PCVResults["2opt"]["tempo"], 5)) + "s",
-        str(round(PCVResults["2opt"]["custo"], 2)),
-        "-"
-    ]
-    dados.append(linha2)
+    for instancia in resultados_pcg:
+        dados.extend([
+            [
+                f"PCG ({instancia['nome']}) - Guloso",
+                _formatar_tempo(instancia["guloso"]["tempo"]),
+                "-",
+                _formatar_fator(instancia["guloso"].get("rho")),
+                instancia["guloso"]["cores"],
+            ],
+            [
+                f"PCG ({instancia['nome']}) - DSATUR",
+                _formatar_tempo(instancia["dsat"]["tempo"]),
+                "-",
+                _formatar_fator(instancia["dsat"].get("rho")),
+                instancia["dsat"]["cores"],
+            ],
+        ])
 
-    # PCG - Guloso
-    linha3 = [
-        "PCG - Guloso",
-        str(round(PCGResults["guloso"]["tempo"], 5)) + "s",
-        "-",
-        PCGResults["guloso"]["cores"]
-    ]
-    dados.append(linha3)
-
-    # PCG - DSATUR
-    linha4 = [
-        "PCG - DSATUR",
-        str(round(PCGResults["dsat"]["tempo"], 5)) + "s",
-        "-",
-        PCGResults["dsat"]["cores"]
-    ]
-    dados.append(linha4)
-
-    print(tabulate(dados, headers=["Algoritmo", "Tempo (s)", "Custo (PCV)", "Nº de Cores (PCG)"], tablefmt="fancy_grid"))
+    print(
+        tabulate(
+            dados,
+            headers=["Algoritmo", "Tempo (s)", "Custo (PCV)", "Fator ρ", "Nº de Cores (PCG)"],
+            tablefmt="fancy_grid",
+        )
+    )
