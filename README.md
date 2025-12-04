@@ -11,9 +11,13 @@ O objetivo é **comparar heurísticas e algoritmos exatos** para ambos os proble
 
 ## 📂 Estrutura do Projeto
 ├── main.py # Programa principal, executa PCV + PCG
+
 ├── PCV.py # Funções do Problema do Caixeiro Viajante
+
 ├── PCG.py # Funções do Problema da Coloração de Grafos
+
 ├── Tabela.py # Funções para exibir os resultados em tabelas
+
 ├── README.md # Documentação do projeto
 
 ---
