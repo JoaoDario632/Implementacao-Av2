@@ -1,4 +1,3 @@
-"""Funções relacionadas ao Problema do Caixeiro Viajante (PCV)."""
 
 from __future__ import annotations
 
@@ -11,8 +10,6 @@ Rota = List[Coordenada]
 
 
 def distancia(ponto_a: Coordenada, ponto_b: Coordenada) -> float:
-    """Calcula a distância euclidiana entre dois pontos (x1, y1) e (x2, y2)."""
-
     return math.dist(ponto_a, ponto_b)
 
 
@@ -24,8 +21,6 @@ def _validar_cidades(cidades: Sequence[Coordenada]) -> None:
 
 
 def TSPvizinhoProximo(cidades: Sequence[Coordenada]) -> Rota:
-    """Heurística do vizinho mais próximo."""
-
     _validar_cidades(cidades)
 
     inicio = cidades[0]
@@ -33,27 +28,26 @@ def TSPvizinhoProximo(cidades: Sequence[Coordenada]) -> Rota:
     rota = [inicio]
     atual = inicio
 
+    # Enquanto há cidades não visitadas
     while nao_percorridos:
+        # Encontra a cidade mais próxima (estratégia gulosa)
         proxima = min(nao_percorridos, key=lambda cidade: distancia(atual, cidade))
         rota.append(proxima)
-        nao_percorridos.remove(proxima)
-        atual = proxima
+        nao_percorridos.remove(proxima)  # Marca como visitada
+        atual = proxima  # Próxima iteração começa daqui
 
-    rota.append(inicio)
+    rota.append(inicio)  # Volta ao início (fecha o ciclo)
     return rota
 
 
 def CustoRota(rota: Sequence[Coordenada]) -> float:
-    """Calcula o custo total (distância) de uma rota."""
-
     if len(rota) < 2:
         return 0.0
+    # Soma distâncias entre cidades consecutivas
     return sum(distancia(rota[i], rota[i + 1]) for i in range(len(rota) - 1))
 
 
 def tsp_2opt(rota_inicial: Sequence[Coordenada]) -> Rota:
-    """Aplica o algoritmo 2-opt até não haver melhorias."""
-
     if len(rota_inicial) < 4:
         return list(rota_inicial)
 
@@ -78,7 +72,7 @@ def tsp_2opt(rota_inicial: Sequence[Coordenada]) -> Rota:
 
 
 def tsp_bruteforce(cidades: Sequence[Coordenada]) -> Tuple[Rota, float]:
-    """Resolve o PCV por força bruta (apenas para instâncias pequenas)."""
+    #! Resolve o PCV por força bruta (apenas para instâncias pequenas).
 
     _validar_cidades(cidades)
 
