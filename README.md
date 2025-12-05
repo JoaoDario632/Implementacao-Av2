@@ -11,9 +11,13 @@ O objetivo é **comparar heurísticas e algoritmos exatos** para ambos os proble
 
 ## 📂 Estrutura do Projeto
 ├── main.py # Programa principal, executa PCV + PCG
+
 ├── PCV.py # Funções do Problema do Caixeiro Viajante
+
 ├── PCG.py # Funções do Problema da Coloração de Grafos
+
 ├── Tabela.py # Funções para exibir os resultados em tabelas
+
 ├── README.md # Documentação do projeto
 
 ---
@@ -70,11 +74,7 @@ Exemplo de tabela gerada:
 ```bash
 pip install tabulate
 
-## Dependências Usadas
-
-Este projeto uso da biblioteca tabulete, a qual realiza a formatação de dados tabulares, para que eles possa ser exibidos de forma legível
-> Para instalar a depedencia, rode o comando:
-  pip install tabulate
+```
 # 👨‍💻 Autores
 <table>
   <tr>
@@ -96,7 +96,14 @@ Este projeto uso da biblioteca tabulete, a qual realiza a formatação de dados 
           <a href="https://github.com/FrrTiago">
          <img src="https://avatars.githubusercontent.com/u/132114628?v=4" style="border-radius: 50%" width="100px;" alt="ferreira"/>
          <br />
-         <sub><b>Tiago Ferreira 💻</b></sub>
+         <sub><b>Tiago Ferreira 💻👑</b></sub>
+       </a>
+     </td>
+     <td align="center">
+          <a href="https://github.com/Otto-Samuel">
+         <img src="https://avatars.githubusercontent.com/u/162514493?v=4" style="border-radius: 50%" width="100px;" alt="otto"/>
+         <br />
+         <sub><b>Otto Samuel 💻👑</b></sub>
        </a>
      </td>
   </tr>
