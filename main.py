@@ -1,5 +1,3 @@
-"""Ponto de entrada do projeto que executa PCV e PCG."""
-
 from __future__ import annotations
 
 import argparse
@@ -48,28 +46,34 @@ def normalizar_grafo(instancia: Mapping) -> Tuple[str, Grafo]:
 
 
 def executar_pcv(nome: str, cidades: Cidades) -> Dict:
+    # VIZINHO PRÓXIMO
     inicio = time.perf_counter()
     rota_vizinho = TSPvizinhoProximo(cidades)
     tempo_vizinho = time.perf_counter() - inicio
     custo_vizinho = CustoRota(rota_vizinho)
 
+    # 2-OPT (melhora a solução do Vizinho Próximo)
     inicio = time.perf_counter()
     rota_2opt = tsp_2opt(rota_vizinho)
     tempo_2opt = time.perf_counter() - inicio
     custo_2opt = CustoRota(rota_2opt)
 
+    # Variáveis para armazenar ótimo (se conseguir calcular)
     otimo = None
     fator_vizinho = None
     fator_2opt = None
 
+    # FORÇA BRUTA (apenas para n ≤ 10)
     if len(cidades) <= 10:
         inicio = time.perf_counter()
         rota_otima, custo_otimo = tsp_bruteforce(cidades)
         tempo_otimo = time.perf_counter() - inicio
         otimo = {"rota": rota_otima, "custo": custo_otimo, "tempo": tempo_otimo}
+        
+        # Calcula fator de aproximação ρ
         if custo_otimo > 0:
-            fator_vizinho = custo_vizinho / custo_otimo
-            fator_2opt = custo_2opt / custo_otimo
+            fator_vizinho = custo_vizinho / custo_otimo  # ρ(Vizinho Próximo)
+            fator_2opt = custo_2opt / custo_otimo          # ρ(2-opt)
 
     return {
         "nome": nome,
@@ -80,20 +84,24 @@ def executar_pcv(nome: str, cidades: Cidades) -> Dict:
 
 
 def executar_pcg(nome: str, grafo: Grafo) -> Dict:
+    # GULOSO SEQUENCIAL
     inicio = time.perf_counter()
     cores_gulosa = CorGulosa(grafo)
     tempo_guloso = time.perf_counter() - inicio
     total_cores_gulosa = max(cores_gulosa.values()) + 1 if cores_gulosa else 0
 
+    # DSATUR (geralmente melhor que guloso)
     inicio = time.perf_counter()
     cores_dsat = Dsatur(grafo)
     tempo_dsat = time.perf_counter() - inicio
     total_cores_dsat = max(cores_dsat.values()) + 1 if cores_dsat else 0
 
+    # Variáveis para armazenar ótimo (se conseguir calcular)
     fator_guloso = None
     fator_dsat = None
     otimo = None
 
+    # BACKTRACKING (apenas para n ≤ 8)
     if len(grafo) <= 8:
         inicio = time.perf_counter()
         cores_otimas = coloracao_backtracking(grafo)
@@ -101,9 +109,10 @@ def executar_pcg(nome: str, grafo: Grafo) -> Dict:
         numero_cores_otimo = max(cores_otimas.values()) + 1 if cores_otimas else 0
         otimo = {"coloracao": cores_otimas, "cores": numero_cores_otimo, "tempo": tempo_otimo}
 
+        # Calcula fator de aproximação ρ
         if numero_cores_otimo > 0:
-            fator_guloso = total_cores_gulosa / numero_cores_otimo
-            fator_dsat = total_cores_dsat / numero_cores_otimo
+            fator_guloso = total_cores_gulosa / numero_cores_otimo   # ρ(Guloso)
+            fator_dsat = total_cores_dsat / numero_cores_otimo       # ρ(DSATUR)
 
     return {
         "nome": nome,
@@ -147,32 +156,38 @@ def main() -> None:
 
     argumentos = parser.parse_args()
 
+    # Carrega instâncias dos arquivos JSON (se fornecidos)
     instancias_pcv = carregar_instancias(argumentos.instancias_pcv, "instancias_pcv")
     instancias_pcg = carregar_instancias(argumentos.instancias_pcg, "instancias_pcg")
 
+    # Se nenhuma instância foi carregada, usa as padrões
     if not instancias_pcv and not instancias_pcg:
         instancias_pcv, instancias_pcg = carregar_instancias_padrao()
 
+    # Executa PCV para todas as instâncias
     resultados_pcv = []
     for instancia in instancias_pcv:
         nome, cidades = normalizar_cidades(instancia)
         resultado = executar_pcv(nome, cidades)
         resultados_pcv.append(resultado)
 
+    # Executa PCG para todas as instâncias
     resultados_pcg = []
     for instancia in instancias_pcg:
         nome, grafo = normalizar_grafo(instancia)
         resultado = executar_pcg(nome, grafo)
         resultados_pcg.append(resultado)
 
+    # Exibe e salva resultados
     if resultados_pcv:
-        tabelaPCV(resultados_pcv)
+        tabelaPCV(resultados_pcv)  # Exibe tabela formatada
         salvar_resultados(argumentos.saida / "pcv_resultados.json", resultados_pcv)
 
     if resultados_pcg:
-        tabelaPCG(resultados_pcg)
+        tabelaPCG(resultados_pcg)  # Exibe tabela formatada
         salvar_resultados(argumentos.saida / "pcg_resultados.json", resultados_pcg)
 
+    # Exibe resumo comparativo
     if resultados_pcv or resultados_pcg:
         Resumo(resultados_pcv, resultados_pcg)
 
